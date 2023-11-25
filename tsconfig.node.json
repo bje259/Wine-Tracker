@@ -1,0 +1,21 @@
+{
+	"compilerOptions": {
+		"composite": true,
+		"skipLibCheck": true,
+		"module": "ESNext",
+		"moduleResolution": "bundler"
+	},
+	"include": [
+		"vite.config.ts",
+		"./app/**/*.ts",
+		"./app/**/*.js",
+		"./app/**/*.svelte",
+		"./app/**/*.d.ts",
+		"./app/**/*.json",
+		"./app/**/*.svg",
+		"./app/**/*.json",
+		"./.eslintrc.json",
+		"app/**/*.json",
+		"./*.ts"
+	]
+}

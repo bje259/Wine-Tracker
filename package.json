@@ -11,7 +11,7 @@
 		"check": "svelte-check --tsconfig ./tsconfig.json",
 		"prepare": "cd .. && husky install ./app/.husky",
 		"format": "prettier --write .",
-		"test-unit": "vitest"
+		"test-unit": "vitest ./src/unittests --ui"
 	},
 	"devDependencies": {
 		"@playwright/test": "^1.40.0",
@@ -20,6 +20,7 @@
 		"@testing-library/svelte": "^4.0.5",
 		"@tsconfig/svelte": "^5.0.2",
 		"@types/node": "^20.10.0",
+		"@vitest/ui": "^0.34.6",
 		"autoprefixer": "^10.4.16",
 		"husky": "^8.0.3",
 		"jsdom": "^22.1.0",

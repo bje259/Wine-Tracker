@@ -1,6 +1,5 @@
 <script lang="ts">
-	import type { AspectFlatArray } from "$types";
-	//imports
+	import type { Cellar, Wine } from "$types";
 	import {
 		Banner,
 		Button,
@@ -12,19 +11,29 @@
 		Spinner,
 		Textarea
 	} from "flowbite-svelte";
-	import { onMount } from "svelte";
+	import { createEventDispatcher, onMount } from "svelte";
 	import { Hamburger } from "svelte-hamburgers";
-	import Aspect from "./lib/Aspect.svelte";
-	import { filterAspects } from "./lib/filterAspects.js";
+	import WineComp from "./lib/WineComp.svelte";
+	import { myWineCellar } from "./store.js";
+
+	import type { AspectFlatArray } from "$types";
+	//imports
 	import type {
 		//AspectData,
 		AspectDeteArray,
-		AspectDetes,
-		//AspectDta,
-		OwnedAspect,
-		OwnedAspects
+		AspectDetes
 	} from "./lib/types";
-	import { debugArray, newOwnedAspects, showSlotBasedViewStore, slotFilterStore } from "./store.js";
+
+	let ownedWinesString = "";
+	let importWinesString = "";
+	let cellar: Cellar = $myWineCellar.getCellar();
+	let ownedWines: Wine[] = [];
+	let searchParams: { [paramName: string]: {name: string, value: string}[]};
+	let searchTerm = "";
+	let selectedProducer = "";
+	let selectedVariety = "";
+	let selectedVineyard = "";
+
 
 	//declarations
 	let classes = [
@@ -72,10 +81,9 @@
 		{ value: "Shield", name: "Shield" }
 	];
 	let open = false;
-	console.log("First updateOwnedAspects");
-	$newOwnedAspects.updateOwnedAspects(loadOwnedAspectsFromLocalStorage());
-	let browserLanguage = navigator.language.replace("-", "");
-	let selectedLocalization = localStorage.getItem("_localization") || "";
+
+	let selectedLocalization = "";
+	//let selectedLocalization = localStorage.getItem("_localization") || "";
 
 	let supportedLocalizations = [
 		{ value: "enUS", name: "USA" },
@@ -94,7 +102,7 @@
 	//let currentSlotFilter = ' '
 	let aspects: AspectFlatArray = [];
 	let selectedClass = "";
-	let searchTerm = "";
+	
 	let selectedSlot = "";
 	let limitToOwned = false;
 	let selectedCodex = "";
@@ -103,16 +111,7 @@
 	//let filteredSlot = ''
 	let importModal = false;
 	let exportModal = false;
-	let filteredAspects: AspectFlatArray = [];
-	let slotFilteredAspects: { [slot: string]: AspectFlatArray } = {};
-	let showSection: { [section: string]: boolean } = {};
-	//let aspect: AspectDeteArray = []
-	//Functions
-
-	// Function overloads
-	function getAspectNames(aspectData: AspectDetes): string[];
-	function getAspectNames(aspectData: AspectDeteArray): string[];
-	function getAspectNames(aspectData: AspectFlatArray): string[];
+	const dispatch = createEventDispatcher();
 
 	// Implementation
 	function getAspectNames(aspectData: AspectDetes | AspectDeteArray | AspectFlatArray): string[] {
@@ -132,110 +131,57 @@
 			return Object.keys(aspectData);
 		}
 	}
-	//updates the debug array
-	function toggleDebug(label: string) {
-		debugArray.update((currentArray) => {
-			// Find the index of the debug entry with the matching label
-			const index = currentArray.findIndex((entry) => entry.label === label);
-			if (index !== -1) {
-				// Toggle the 'enabled' property
-				const entry = currentArray[index];
-				entry.enabled = !entry.enabled;
-				// Replace the entry in the array
-				return [...currentArray.slice(0, index), entry, ...currentArray.slice(index + 1)];
-			}
-			return currentArray; // If not found, return the array unchanged
-		});
-	}
-	//setup watch points for debugging using reactive statements
-	function updateDebugArray(pLabel: string, pEnabled: boolean, pText: string) {
-		debugArray.update((currentArray) => [
-			...currentArray,
-			{
-				label: pLabel,
-				enabled: pEnabled,
-				text: pText
-			}
-		]);
-	}
-	/**
-	 * Fetches aspects data from the server and maps it to an array of objects.
-	 * @returns {Promise<void>}
-	 */
-	async function getAspects() {
-		const aspects_db_url = "/aspects.json";
 
-		try {
-			const response = await fetch(aspects_db_url);
-
-			if (!response.ok) {
-				throw new Error(`HTTP error! Status: ${response.status}`);
-			}
-
-			const data: AspectDetes = (await response.json()) as AspectDetes;
-			updateDebugArray("getAspects1", false, getAspectNames(data).join(" "));
-			// Check if the response is valid JSON
-			if (typeof data !== "object") {
-				throw new Error("Invalid JSON format!");
-			}
-
-			aspects = Object.entries(data).map(([name, aspect]) => ({
-				name: name,
-				...aspect
-			}));
-		} catch (error) {
-			console.error(error);
-		}
-	}
-	function setLocalization() {
-		localStorage.setItem("_localization", selectedLocalization);
-	}
-	function loadOwnedAspectsFromLocalStorage(): OwnedAspects {
-		const loadedOwnedAspects: OwnedAspects = {};
-
+	function loadOwnedWinesFromLocalStorage(): Cellar {
+		const loadedOwnedWines: Cellar = {};
+		
 		for (let i = 0; i < localStorage.length; i++) {
 			const key = localStorage.key(i);
 			if (key) {
-				if (key.indexOf("_") === 0) {
-					continue;
-				}
 				const values = localStorage.getItem(key);
 				console.log("loadfromstorage key " + key);
 				if (values) {
 					try {
-						loadedOwnedAspects[key] = JSON.parse(values) as OwnedAspect[];
+						loadedOwnedWines[key] = JSON.parse(values) as Wine[];
 					} catch (error) {
 						console.error(`Error parsing data for key "${key}":`, error);
 					}
 				}
 			}
 		}
-
-		return loadedOwnedAspects;
+		console.log("loadfromstorage loadedOwnedWines /n");
+		console.log(loadedOwnedWines);
+		return loadedOwnedWines;
 	}
-	function handleAspectUpdated() {
+
+	function handleWinesUpdated() {
 		// Update the local data or trigger a refresh
-		console.log("handleAspectUpdated called loading from local storage");
-		$newOwnedAspects.updateOwnedAspects(loadOwnedAspectsFromLocalStorage());
+		console.log("handleWinesUpdated (App.svelte) called loading from local storage");
+		$myWineCellar.updateCellar(loadOwnedWinesFromLocalStorage());
+		searchParams = {
+			producer: $myWineCellar.getProducerNames(),
+			variety: $myWineCellar.getVarietyNames(),
+			vineyard: $myWineCellar.getVineyardNames()
+		};
 	}
 
-	function clearSearch(e: MouseEvent): void {
-		searchTerm = "";
+	function clearSearch(setter: (value: string) => void): void {
+		setter("");
 	}
 
 	function importData(e: MouseEvent): void {
-		if (importAspectsString === "") {
+		if (importWinesString === "") {
 			return;
 		}
-		const importAspects: OwnedAspects = JSON.parse(importAspectsString) as OwnedAspects;
+		const importWines: Cellar = JSON.parse(importWinesString) as Cellar;
 
-		// Save owned aspects to local storage
-		for (const key in importAspects) {
-			const values = importAspects[key];
+		// Save owned Wines to local storage
+		for (const key in importWines) {
+			const values = importWines[key];
 			localStorage.setItem(key, JSON.stringify(values));
 		}
 
-		importAspectsString = "";
+		importWinesString = "";
 		importModal = false;
 	}
 
@@ -250,112 +196,45 @@
 			});
 	}
 
-	//$newOwnedAspects.updateOwnedAspects(loadOwnedAspectsFromLocalStorage());
+	function openAddPanel(){
 
-	function updateFilteredAspects(slot: string): string {
-		if (slot == "" || slot == undefined || slot == "none") {
-			console.log("ZZ App showing Aspect - updateFilteredAspects: All Slots");
-			return "All Slots";
-		} else {
-			console.log("ZZ App showing updateFilteredAspects: " + slot);
-			$slotFilterStore = slot;
-
-			return slot;
-		}
 	}
 
-	//prints debug array to console
-	debugArray.subscribe((currentArray) => {
-		currentArray.forEach((entry) => {
-			if (entry.enabled) {
-				console.log(`[${entry.label}]: ${entry.text}`);
-			}
-		});
-	});
-	//checks localizations selection
-	if (selectedLocalization == null || selectedLocalization == "") {
-		if (supportedLocalizations.find((x) => x.value === browserLanguage)) {
-			selectedLocalization = browserLanguage;
-		} else {
-			selectedLocalization = "enUS";
-		}
-		localStorage.setItem("_localization", selectedLocalization);
+	function deleteProducer(){
+
 	}
 
-	$: if (!$showSlotBasedViewStore) {
-		$slotFilterStore = "";
-	}
-
-	//checks if slot based view is selected
-	$: {
-		if ($showSlotBasedViewStore) {
-			slotFilteredAspects = realSlots.reduce((acc: { [key: string]: AspectFlatArray }, slot) => {
-				console.log("Code reactive: SlotView=ON Loop=Real slots " + slot.value);
-				filterAspects(
-					aspects,
-					selectedClass,
-					searchTerm,
-					selectedCodex,
-					limitToOwned,
-					selectedSlot,
-					true,
-					slot.value,
-					selectedLocalization
-				);
-				acc[slot.value] = $newOwnedAspects.getFilteredAspectFlatArray();
-				showSection[slot.value] = acc[slot.value].length > 0;
-				return acc;
-			}, {});
-
-			let filteredString: string = Object.entries(slotFilteredAspects)
-				.map(([slot, aspects]) => `${slot}: ${aspects.map((a) => a.name).join(", ")}`)
-				.join("\n");
-			console.log("Code reactive: SlotView=ON: Loop=done Filtered entries: " + filteredString);
-		} else {
-			filterAspects(
-				aspects,
-				selectedClass,
-				searchTerm,
-				selectedCodex,
-				limitToOwned,
-				selectedSlot,
-				false,
-				"",
-				selectedLocalization
-			);
-			filteredAspects = $newOwnedAspects.getFilteredAspectFlatArray();
-			console.log(
-				"Code reactive: SlotView=Off Loop=off Filtered count = " + filteredAspects.length
-			);
-		}
-	}
-	$: filteredAspects = $newOwnedAspects.getFilteredAspectFlatArray();
 	// Load owned aspects from local storage on component mount
 	onMount(() => {
-		getAspects().catch((error) => {
-			console.error("An error occurred while fetching aspects:", error);
-		});
-		// example ownedAspects
-		// {
-		//   "Abyssal": [{
-		//     "note": "25%",
-		//     "time": "2021-05-01T12:00:00"
-		//   }, {
-		//     "note": "50%",
-		//     "time": "2021-05-02T12:00:00"
-		//   }]
-		// }
-
-		localStorage.removeItem("localization");
-
-		// Load owned aspects from local storage
+		$myWineCellar.updateCellar(loadOwnedWinesFromLocalStorage());
+		dispatch("wineUpdated");
+		cellar = $myWineCellar.getCellar();
 		console.log("onMount called loading from local storage");
-		$newOwnedAspects.updateOwnedAspects(loadOwnedAspectsFromLocalStorage());
+		console.log($myWineCellar.getCellar());
 	});
 
-	$: if (exportModal) {
-		ownedAspectsString = JSON.stringify(loadOwnedAspectsFromLocalStorage());
+	$: {
+		console.log("Reactive cellar in App.svelte updating from store");
+		cellar = $myWineCellar.getCellar();
 	}
+
+	$: if (exportModal) {
+		ownedWinesString = JSON.stringify(loadOwnedWinesFromLocalStorage());
+		console.log("ownedWinesString");
+	}
+
+	$: {
+		console.log(`Reactive check key length ${Object.keys(cellar).length}`);
+		if (Object.keys(cellar).length > 0) {
+			ownedWines = Object.values(cellar).flat();
+			ownedAspectsString = JSON.stringify(ownedWines);
+		}
+		console.log("Printing ownedWines and ownedAspectsString");
+		console.log(ownedWines);
+		console.log(ownedAspectsString);
+	}
+	
+
 </script>
 
 <!--Markup section-->
@@ -391,13 +270,13 @@
 	</p>
 </Banner>
 
-<Modal title="Import Aspects" bind:open={importModal} autoclose>
-	<Textarea bind:value={importAspectsString} />
+<Modal title="Import Wines" bind:open={importModal} autoclose>
+	<Textarea bind:value={importWinesString} />
 	<Button on:click={importData}>Import</Button>
 </Modal>
 
 <Modal title="Export Aspects" bind:open={exportModal} autoclose>
-	<Textarea bind:value={ownedAspectsString} readonly />
+	<Textarea bind:value={ownedWinesString} readonly />
 	<Button on:click={copyText}>Copy</Button>
 </Modal>
 
@@ -405,86 +284,66 @@
 {#if open}
 	<Button on:click={() => (exportModal = true)}>Export</Button>
 	<Button on:click={() => (importModal = true)}>Import</Button>
-	<Select
-		placeholder="Language"
-		class="w-40 inline-block"
-		items={supportedLocalizations}
-		bind:value={selectedLocalization}
-		on:change={setLocalization}
-	/>
 {/if}
 <!--primary UI section including search input fields and heard aspect information -->
 <div class="p-4">
 	<div class="mb-8 md:max-w-md mx-auto">
-		<h1 class="text-2xl text-red-600 font-medium mb-4">D4 Aspect Tracker</h1>
-		<Input bind:value={searchTerm} placeholder="Search by name or description" class="mt-2">
-			<CloseButton slot="right" on:click={clearSearch} />
+		<h1 class="text-2xl text-red-600 font-medium mb-4">Billy's Wine Cellar</h1>
+		<Input bind:value={searchTerm} placeholder="Search by keyword" class="mt-2">
+			<CloseButton slot="right" on:click={()=>clearSearch((v)=>searchTerm = v) } />
 		</Input>
-		<Select placeholder="Select a class" class="mt-2" items={classes} bind:value={selectedClass} />
-		<Select placeholder="Select item slot" class="mt-2" items={slots} bind:value={selectedSlot} />
 		<Select
-			placeholder="Both In Codex and Not in Codex"
+			placeholder="Select a producer"
 			class="mt-2"
-			items={codex}
-			bind:value={selectedCodex}
+			items={searchParams.producer}
+			bind:value={selectedProducer}
 		/>
-		<div class="mt-2">
-			<Checkbox class="text-base" name="lto" bind:checked={limitToOwned}>Limit to owned</Checkbox>
-		</div>
-
-		{#if limitToOwned}<!--new checkbox for new sorting method; only shows if the original check box is checked-->
-			<div class="flex items-center mb-4">
-				<input
-					id="sbv"
-					type="checkbox"
-					value=""
-					bind:checked={$showSlotBasedViewStore}
-					class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-				/>
-				<label for="sbv" class="ms-2 text-sm font-medium text-gray-900 dark:text-gray-300"
-					>Show Slot Based View</label
-				>
-			</div>
-		{/if}
+		<Select
+			placeholder="Select a variety"
+			class="mt-2"
+			items={searchParams.variety}
+			bind:value={selectedVariety}
+		/>
+		<Select
+			placeholder="Select a vineyard"
+			class="mt-2"
+			items={searchParams.vineyard}
+			bind:value={selectedVineyard}
+		/>
 	</div>
-	{#if $showSlotBasedViewStore}
-		{#each realSlots as slot (slot.value)}
-			{#if showSection[slot.value]}
+	<div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+		{#if Object.keys(cellar).length > 0}
+			{#each Object.keys(cellar) as producer (producer)}
 				<div class="mb-8 flex flex-col">
 					<h1 class="text-2xl text-red-600 font-medium mb-4">
-						{slot.name}
+						{producer}
 					</h1>
-					<div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-						{#if slotFilteredAspects[slot.value].length > 0}
-							{#each slotFilteredAspects[slot.value] as aspect (aspect.name)}
-								<Aspect
-									{aspect}
-									{selectedLocalization}
-									aspectSlot={updateFilteredAspects(slot.value)}
-									on:aspectUpdated={handleAspectUpdated}
-								/>
-							{/each}
-						{:else}
-							<Spinner />
-						{/if}
-					</div>
-				</div>
-			{/if}
-		{/each}
-	{:else}
-		<div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-			{#if filteredAspects.length > 0}
-				{#each filteredAspects as aspect (aspect.name)}
-					<Aspect
-						{aspect}
-						{selectedLocalization}
-						aspectSlot={updateFilteredAspects("none")}
-						on:aspectUpdated={handleAspectUpdated}
-					/>
-				{/each}
-			{:else}
-				<Spinner />
-			{/if}
+					{#each cellar[producer] as wine (wine)}
+						<WineComp {wine} {producer} on:wineUpdated={handleWinesUpdated} />
+					{/each}
+					<div
+			class="grid grid-cols-1 gap-1 overflow-hidden bg-white border divide-x rounded-lg rtl:flex-row-reverse dark:bg-gray-800 dark:border-gray-700 dark:divide-gray-700"
+		>
+			<Button
+				type="button"
+				class="text-white bg-gradient-to-r from-teal-400 via-teal-500 to-teal-600 hover:bg-gradient-to-br focus:ring-4 focus:outline-none focus:ring-teal-300 dark:focus:ring-teal-800 font-medium rounded-lg text-sm px-5 py-2.5 text-center m-4"
+				on:click={() => openAddPanel()}
+			>
+				Add new wine
+			</Button>
+
+			<Button
+				type="button"
+				class="text-white bg-gradient-to-r from-teal-400 via-teal-500 to-teal-600 hover:bg-gradient-to-br focus:ring-4 focus:outline-none focus:ring-teal-300 dark:focus:ring-teal-800 font-medium rounded-lg text-sm px-5 py-2.5 text-center m-4"
+				on:click={() => deleteProducer()}
+			>
+				Delete all wines from producer
+			</Button>
 		</div>
-	{/if}
+				</div>
+			{/each}
+		{:else}
+			<Spinner />
+		{/if}
+	</div>
 </div>

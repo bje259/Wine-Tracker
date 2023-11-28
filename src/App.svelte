@@ -18,6 +18,7 @@
 
 	import type { AspectFlatArray } from "$types";
 	//imports
+	import presetList from "./lib/presetList.json";
 	import type {
 		//AspectData,
 		AspectDeteArray,
@@ -229,6 +230,20 @@
 		updateDDLs();
 		dispatch("wineUpdated");
 	}
+	function loadPreset() {
+		$myWineCellar.updateCellar(presetList);
+		// Save owned Wines to local storage
+		let importWines: Cellar = presetList;
+		for (const key in importWines) {
+			const values = importWines[key];
+			localStorage.setItem(key, JSON.stringify(values));
+		}
+		console.log("loadPreset called");
+		console.log(presetList);
+		updateDDLs();
+		cellar = $myWineCellar.getCellar();
+		dispatch("wineUpdated");
+	}
 
 	// Load owned aspects from local storage on component mount
 	onMount(() => {
@@ -318,6 +333,7 @@
 {#if open}
 	<Button on:click={() => (exportModal = true)}>Export</Button>
 	<Button on:click={() => (importModal = true)}>Import</Button>
+	<Button on:click={loadPreset}>Load Billy's Preset Wine List</Button>
 {/if}
 <!--primary UI section including search input fields and heard aspect information -->
 <div class="p-4">

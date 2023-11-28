@@ -18,5 +18,14 @@
 			"$types": ["./src/lib/types"]
 		}
 	},
-	"include": ["src/**/*.d.ts", "src/**/*.ts", "src/**/*.js", "src/**/*.svelte"]
+	"include": [
+		"src/**/*.d.ts",
+		"src/**/*.ts",
+		"src/**/*.js",
+		"src/**/*.svelte",
+		"src/**/*.json",
+		"src/**/*.svg",
+		"src/**/*.json",
+		"./*.ts"
+	]
 }

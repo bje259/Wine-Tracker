@@ -30,3 +30,5 @@ dist-ssr
 /blob-report/
 /playwright/.cache/
 src/To-Do Notes.nnb
+/dist/
+/assets/

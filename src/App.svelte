@@ -3,7 +3,6 @@
 	import {
 		Banner,
 		Button,
-		Checkbox,
 		CloseButton,
 		Input,
 		Modal,
@@ -13,6 +12,7 @@
 	} from "flowbite-svelte";
 	import { createEventDispatcher, onMount } from "svelte";
 	import { Hamburger } from "svelte-hamburgers";
+	import AddSpecificWine from "./lib/AddSpecificWine.svelte";
 	import WineComp from "./lib/WineComp.svelte";
 	import { myWineCellar } from "./store.js";
 
@@ -28,12 +28,17 @@
 	let importWinesString = "";
 	let cellar: Cellar = $myWineCellar.getCellar();
 	let ownedWines: Wine[] = [];
-	let searchParams: { [paramName: string]: {name: string, value: string}[]};
+	let searchParams: { [paramName: string]: { name: string; value: string }[] } = {
+		producer: [{ name: "All Producers", value: "" }],
+		variety: [{ name: "All Varieties", value: "" }],
+		vineyard: [{ name: "All Vineyards", value: "" }]
+	};
 	let searchTerm = "";
 	let selectedProducer = "";
 	let selectedVariety = "";
 	let selectedVineyard = "";
-
+	let openNewWine = false;
+	let openVerb = "Open";
 
 	//declarations
 	let classes = [
@@ -102,7 +107,7 @@
 	//let currentSlotFilter = ' '
 	let aspects: AspectFlatArray = [];
 	let selectedClass = "";
-	
+
 	let selectedSlot = "";
 	let limitToOwned = false;
 	let selectedCodex = "";
@@ -134,7 +139,7 @@
 
 	function loadOwnedWinesFromLocalStorage(): Cellar {
 		const loadedOwnedWines: Cellar = {};
-		
+
 		for (let i = 0; i < localStorage.length; i++) {
 			const key = localStorage.key(i);
 			if (key) {
@@ -158,11 +163,24 @@
 		// Update the local data or trigger a refresh
 		console.log("handleWinesUpdated (App.svelte) called loading from local storage");
 		$myWineCellar.updateCellar(loadOwnedWinesFromLocalStorage());
-		searchParams = {
-			producer: $myWineCellar.getProducerNames(),
-			variety: $myWineCellar.getVarietyNames(),
-			vineyard: $myWineCellar.getVineyardNames()
-		};
+		updateDDLs();
+	}
+
+	function addOptions(paramKey: string, newOptions: { name: string; value: string }[]) {
+		if (searchParams[paramKey]) {
+			searchParams[paramKey] = [...searchParams[paramKey], ...newOptions];
+		} else {
+			// Optionally handle the case where the paramKey does not exist
+		}
+	}
+
+	function updateDDLs() {
+		console.log("updateDDLs called");
+		addOptions("producer", $myWineCellar.getProducerNames());
+		addOptions("variety", $myWineCellar.getVarietyNames());
+		addOptions("vineyard", $myWineCellar.getVineyardNames());
+		console.log("updateDDLs searchParams");
+		console.log(searchParams);
 	}
 
 	function clearSearch(setter: (value: string) => void): void {
@@ -196,12 +214,20 @@
 			});
 	}
 
-	function openAddPanel(){
-
-	}
-
-	function deleteProducer(){
-
+	function deleteProducer(producer: string) {
+		console.log("deleteProducer called");
+		console.log(producer);
+		localStorage.removeItem(producer);
+		myWineCellar.update((current) => {
+			if (current.removeProducer(producer)) {
+				console.log("deleteProducer removed producer");
+			} else {
+				console.log("deleteProducer did not remove producer");
+			}
+			return current;
+		});
+		updateDDLs();
+		dispatch("wineUpdated");
 	}
 
 	// Load owned aspects from local storage on component mount
@@ -211,11 +237,18 @@
 		cellar = $myWineCellar.getCellar();
 		console.log("onMount called loading from local storage");
 		console.log($myWineCellar.getCellar());
+
+		updateDDLs();
 	});
 
 	$: {
 		console.log("Reactive cellar in App.svelte updating from store");
-		cellar = $myWineCellar.getCellar();
+		cellar = $myWineCellar.getFilteredCellar({
+			searchterm: searchTerm,
+			producer: selectedProducer,
+			variety: selectedVariety,
+			vineyard: selectedVineyard
+		});
 	}
 
 	$: if (exportModal) {
@@ -233,43 +266,44 @@
 		console.log(ownedWines);
 		console.log(ownedAspectsString);
 	}
-	
 
+	$: updateDDLs();
 </script>
 
 <!--Markup section-->
-<Banner id="top-banner" position="relative">
-	<p class="flex items-center text-sm font-normal text-gray-500 dark:text-gray-400">
-		<span class="inline-flex p-1 mr-3 bg-gray-200 rounded-full dark:bg-gray-600">
-			<svg
-				class="w-4 h-4 text-gray-500 dark:text-gray-400"
-				fill="currentColor"
-				viewBox="0 0 20 20"
-				xmlns="http://www.w3.org/2000/svg"
-				aria-hidden="true"
-			>
-				<path
-					d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1h4v1a2 2 0 11-4 0zM12 14c.015-.34.208-.646.477-.859a4 4 0 10-4.954 0c.27.213.462.519.476.859h4.002z"
-				/>
-			</svg>
-			<span class="sr-only">Issues and Comments</span>
-		</span>
-		<span
-			><p>
-				This project is open source. Please report issues, feedback, and comments on our <a
-					href="https://github.com/fawadasaurus/d4-aspect-tracker/issues"
-					class="inline font-medium text-primary-600 underline dark:text-primary-500 underline-offset-2 decoration-600 dark:decoration-500 decoration-solid hover:no-underline"
-					>Github</a
+{#if false}
+	<Banner id="top-banner" position="relative">
+		<p class="flex items-center text-sm font-normal text-gray-500 dark:text-gray-400">
+			<span class="inline-flex p-1 mr-3 bg-gray-200 rounded-full dark:bg-gray-600">
+				<svg
+					class="w-4 h-4 text-gray-500 dark:text-gray-400"
+					fill="currentColor"
+					viewBox="0 0 20 20"
+					xmlns="http://www.w3.org/2000/svg"
+					aria-hidden="true"
 				>
-			</p>
-			<!-- <p>
+					<path
+						d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1h4v1a2 2 0 11-4 0zM12 14c.015-.34.208-.646.477-.859a4 4 0 10-4.954 0c.27.213.462.519.476.859h4.002z"
+					/>
+				</svg>
+				<span class="sr-only">Issues and Comments</span>
+			</span>
+			<span
+				><p>
+					This project is open source. Please report issues, feedback, and comments on our <a
+						href="https://github.com/fawadasaurus/d4-aspect-tracker/issues"
+						class="inline font-medium text-primary-600 underline dark:text-primary-500 underline-offset-2 decoration-600 dark:decoration-500 decoration-solid hover:no-underline"
+						>Github</a
+					>
+				</p>
+				<!-- <p>
         Localization (language) and Export/Import in the menu on the top left.
       </p> -->
-		</span>
-		<span />
-	</p>
-</Banner>
-
+			</span>
+			<span />
+		</p>
+	</Banner>
+{/if}
 <Modal title="Import Wines" bind:open={importModal} autoclose>
 	<Textarea bind:value={importWinesString} />
 	<Button on:click={importData}>Import</Button>
@@ -288,9 +322,9 @@
 <!--primary UI section including search input fields and heard aspect information -->
 <div class="p-4">
 	<div class="mb-8 md:max-w-md mx-auto">
-		<h1 class="text-2xl text-red-600 font-medium mb-4">Billy's Wine Cellar</h1>
+		<h1 class="text-2xl text-cyan-700 font-medium mb-4">Billy's Wine Cellar</h1>
 		<Input bind:value={searchTerm} placeholder="Search by keyword" class="mt-2">
-			<CloseButton slot="right" on:click={()=>clearSearch((v)=>searchTerm = v) } />
+			<CloseButton slot="right" on:click={() => clearSearch((v) => (searchTerm = v))} />
 		</Input>
 		<Select
 			placeholder="Select a producer"
@@ -310,36 +344,31 @@
 			items={searchParams.vineyard}
 			bind:value={selectedVineyard}
 		/>
+		<AddSpecificWine producer={"_New Producer"} on:wineUpdated={handleWinesUpdated} />
 	</div>
 	<div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
 		{#if Object.keys(cellar).length > 0}
 			{#each Object.keys(cellar) as producer (producer)}
 				<div class="mb-8 flex flex-col">
-					<h1 class="text-2xl text-red-600 font-medium mb-4">
+					<h1 class="text-2xl text-cyan-500 font-medium mb-4">
 						{producer}
 					</h1>
-					{#each cellar[producer] as wine (wine)}
-						<WineComp {wine} {producer} on:wineUpdated={handleWinesUpdated} />
+					{#each cellar[producer] as wine, i (wine)}
+						<WineComp {wine} {producer} index={i} on:wineUpdated={handleWinesUpdated} />
 					{/each}
 					<div
-			class="grid grid-cols-1 gap-1 overflow-hidden bg-white border divide-x rounded-lg rtl:flex-row-reverse dark:bg-gray-800 dark:border-gray-700 dark:divide-gray-700"
-		>
-			<Button
-				type="button"
-				class="text-white bg-gradient-to-r from-teal-400 via-teal-500 to-teal-600 hover:bg-gradient-to-br focus:ring-4 focus:outline-none focus:ring-teal-300 dark:focus:ring-teal-800 font-medium rounded-lg text-sm px-5 py-2.5 text-center m-4"
-				on:click={() => openAddPanel()}
-			>
-				Add new wine
-			</Button>
+						class="grid grid-cols-1 gap-1 overflow-hidden bg-white border divide-x rounded-lg rtl:flex-row-reverse dark:bg-gray-800 dark:border-gray-700 dark:divide-gray-700"
+					>
+						<AddSpecificWine {producer} on:wineUpdated={handleWinesUpdated} />
 
-			<Button
-				type="button"
-				class="text-white bg-gradient-to-r from-teal-400 via-teal-500 to-teal-600 hover:bg-gradient-to-br focus:ring-4 focus:outline-none focus:ring-teal-300 dark:focus:ring-teal-800 font-medium rounded-lg text-sm px-5 py-2.5 text-center m-4"
-				on:click={() => deleteProducer()}
-			>
-				Delete all wines from producer
-			</Button>
-		</div>
+						<Button
+							type="button"
+							class="text-white bg-gradient-to-r from-teal-400 via-teal-500 to-teal-600 hover:bg-gradient-to-br focus:ring-4 focus:outline-none focus:ring-teal-300 dark:focus:ring-teal-800 font-medium rounded-lg text-sm px-5 py-2.5 text-center m-4"
+							on:click={() => deleteProducer(producer)}
+						>
+							Delete all wines from producer
+						</Button>
+					</div>
 				</div>
 			{/each}
 		{:else}

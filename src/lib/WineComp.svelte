@@ -1,16 +1,22 @@
 <script lang="ts">
 	//import WineCellar from './WineCellar';
 	import type { Wine } from "$types";
-	import { Button } from "flowbite-svelte";
+	import { Button, Label } from "flowbite-svelte";
 	import { createEventDispatcher } from "svelte";
 	import { myWineCellar } from "../store";
+
+	// increment the value of the input field
+	//counterInput.increment();
+
+	// decrement the value of the input field
+	//if (counterInput) counterInput.decrement();
 
 	const dispatch = createEventDispatcher();
 
 	export let producer: string;
 	export let wine: Wine;
+	export let index: number;
 
-	let openNewWine = false;
 	let tempWines: Wine[] = [];
 	$: ownedWines = $myWineCellar.getWinesByProducer(producer) || [];
 
@@ -49,7 +55,7 @@
 			console.log("Updated myWineCellar with tempWines");
 			console.log($myWineCellar.getWinesByProducer(producer));
 			myWineCellar.update((current) => {
-				current.updateWine(producer, wine);
+				current.updateWine(producer, wine, index);
 				return current;
 			});
 			console.log(`Updated myWineCellar with wine
@@ -89,7 +95,7 @@
 				console.log("Updated myWineCellar with tempWines");
 				console.log($myWineCellar.getWinesByProducer(producer));
 				myWineCellar.update((current) => {
-					current.updateWine(producer, wine);
+					current.updateWine(producer, wine, index);
 					return current;
 				});
 				console.log(`Updated myWineCellar with wine
@@ -120,18 +126,29 @@
 		if (wine.Qty > 0) {
 			wine.Qty = 0;
 			console.log(`ZZ Wine deleteWine - wine.Qty: ${wine.Qty}`);
-			let storedValue = localStorage.getItem(wine["Wine Name"]) ?? "[]";
+			let storedValue = localStorage.getItem(producer) ?? "[]";
 			try {
-				ownedWines = JSON.parse(storedValue);
+				tempWines = JSON.parse(storedValue);
+				console.log(`ZZ Wine delete wine - pulled producer's wines from local storage:`);
+				console.log(tempWines);
+				tempWines.splice(index, 1);
+				if (tempWines.length === 0) {
+					localStorage.removeItem(producer);
+				} else {
+					localStorage.setItem(producer, JSON.stringify(tempWines));
+				}
+				myWineCellar.update((current) => {
+					current.updateCellarByProducer(producer, tempWines);
+					return current;
+				});
 			} catch (error) {
 				console.error("Error parsing JSON from localStorage", error);
 				ownedWines = [];
 			}
-			console.log(`ZZ Wine deleteWine - ownedWines: ${ownedWines}`);
-			myWineCellar.update((current) => {
-				current.updateCellarByProducer(producer, ownedWines);
-				return current;
-			});
+			console.log("Updated myWineCellar with tempWines");
+			console.log($myWineCellar.getWinesByProducer(producer));
+			tempWines = [];
+			console.log("dispatching wineUpdated");
 
 			dispatch("wineUpdated");
 		}
@@ -145,34 +162,48 @@
 			: ""}
 	</h3>
 	<div class="flex flex-col">
+		<div class="grid grid-cols-3">
+			<p class="text-base mb-4 flex-grow">
+				Vintage: {wine.Vintage ? `${wine.Vintage} ` : ""}
+				<br />Bin: {wine.Bin ? `${wine.Bin} ` : ""}
+			</p>
+			<Button class="self-end flex-shrink-0 justify-self-end col-start-3" on:click={deleteWine}
+				>Delete</Button
+			>
+		</div>
+		<div
+			class="grid grid-flow-col grid-cols-6 col-start-1 col-end-4 grid-rows-2 flex-shrink-1 gap-1 overflow-hidden divide-x rounded-lg rtl:flex-row-reverse ml-2"
+		>
+			<Label
+				for="counter-input-example"
+				class="block mb-1 text-sm font-medium text-gray-900 dark:text-white flex-shrink-1 col-span-2 bottom-0 content-end self-end"
+				>Choose quantity:</Label
+			>
+			<div class="inline-flex row-span-1 col-span-3 top-0 inset-0 border-l-transparent">
+				<Button
+					type="button"
+					class="flex-shrink-0 border-transparent bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600  hover:bg-gray-200 inline-flex items-center justify-center   rounded-md h-5 w-5 focus:ring-gray-100 dark:focus:ring-gray-700 focus:ring-2 focus:outline-none"
+					on:click={qtyDecrement}
+				>
+					-
+				</Button>
+
+				<Label class=" inline-flex">Qty: {Number.isFinite(wine.Qty) ? `${wine.Qty} ` : ""}</Label>
+				<Button
+					type="button"
+					class="flex-shrink-0 bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 dark:border-gray-600 hover:bg-gray-200 inline-flex items-center justify-center border border-gray-300 rounded-md h-5 w-5 focus:ring-gray-100 dark:focus:ring-gray-700 focus:ring-2 focus:outline-none"
+					on:click={qtyIncrement}
+				>
+					+
+				</Button>
+			</div>
+		</div>
 		<p class="text-base mb-4 flex-grow">
-			Vintage: {wine.Vintage ? `${wine.Vintage} ` : ""}
-			<br />Bin: {wine.Bin ? `${wine.Bin} ` : ""}
-			<br />Qty: {Number.isFinite(wine.Qty) ? `${wine.Qty} ` : ""}
 			<br />Purchase Date: {wine.Purchased ? `${wine.Purchased} ` : ""}
 			{#if wine.Notes !== undefined && wine.Notes !== null && wine.Notes !== ""}
 				<br />
 				Notes: {wine.Notes}
 			{/if}
 		</p>
-		<div
-			class="grid grid-cols-2 gap-1 overflow-hidden bg-white border divide-x rounded-lg rtl:flex-row-reverse dark:bg-gray-800 dark:border-gray-700 dark:divide-gray-700"
-		>
-			<Button
-				type="button"
-				class="text-white bg-gradient-to-r from-teal-400 via-teal-500 to-teal-600 hover:bg-gradient-to-br focus:ring-4 focus:outline-none focus:ring-teal-300 dark:focus:ring-teal-800 font-medium rounded-lg text-sm px-5 py-2.5 text-center m-4"
-				on:click={qtyIncrement}
-			>
-				+
-			</Button>
-
-			<Button
-				type="button"
-				class="text-white bg-gradient-to-r from-teal-400 via-teal-500 to-teal-600 hover:bg-gradient-to-br focus:ring-4 focus:outline-none focus:ring-teal-300 dark:focus:ring-teal-800 font-medium rounded-lg text-sm px-5 py-2.5 text-center m-4"
-				on:click={qtyDecrement}
-			>
-				-
-			</Button>
-		</div>
 	</div>
 </div>

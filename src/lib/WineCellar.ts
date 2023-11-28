@@ -1,9 +1,36 @@
-import type { Wine, Cellar } from "./types";
+import type { Cellar, Wine } from "./types";
+
+/**
+ * The WineCellar class represents a collection of wines.
+ * @property {Cellar} cellar - The cellar object.
+ * @see Wine
+ * @see Cellar
+ * @see WineCellar
+ * @example
+ */
 
 export class WineCellar {
 	cellar: Cellar;
-	
 
+	/**
+	 * The WineCellar class represents a collection of wines.
+	 * @property {Cellar} cellar - The cellar object.
+	 * @see Wine
+	 * @see Cellar
+	 * @see WineCellar
+	 * @example
+	 * const myCellar = new WineCellar();
+	 * myCellar.addWine("Chateau Margaux", {
+	 * 	"Wine Name": "Margaux 2015",
+	 * 	"Vineyard Location": "Bordeaux, France",
+	 * 	Variety: "Cabernet Sauvignon",
+	 * 	Vintage: 2015,
+	 * 	Bin: "A1",
+	 * 	Qty: 10,
+	 * 	Purchased: "2020-01-01",
+	 * 	Notes: "Excellent vintage"
+	 * });
+	 */
 	constructor(cell: Cellar = {}) {
 		this.cellar = cell;
 	}
@@ -44,33 +71,72 @@ export class WineCellar {
 	 * // ]
 	 */
 	addWine(producer: string, wine: Wine): void {
-		const existingWine = this.cellar[producer] || [];
+		const existingWine: Wine[] = this.cellar[producer] || [];
 		this.cellar[producer] = [...existingWine, wine];
 	}
+
+/**
+ * Adds a producer to the wine cellar.
+ * @param producer - The producer of the wine.
+ * @returns Nothing.
+ * @see Wine
+ * @see Cellar
+ * @see WineCellar
+ */
+	addProducer(producer: string): void {
+		this.cellar[producer] = [];
+	}
+
 
 	/**
 	 * Removes a wine from the wine cellar.
 	 * @param producer - The producer of the wine.
 	 * @param wineName - The name of the wine.
+	 * @param wine - The wine to be removed (optional).
 	 * @returns True if the wine was successfully removed, false otherwise.
 	 */
-	removeWine(producer: string, wineName: string): boolean {
+	removeWine(producer: string, wineName: string, wine?: Wine): boolean {
 		if (this.cellar[producer]) {
-			const index = this.cellar[producer].findIndex((wine) => wine["Wine Name"] === wineName);
-			if (index !== -1) {
-				let tmp = this.cellar[producer];
-				tmp.splice(index, 1);
-				this.cellar[producer] = tmp;
-				return true; // Wine removed successfully
+			if (wine) {
+				const index = this.cellar[producer].indexOf(wine);
+				if (index !== -1) {
+					let tmp = this.cellar[producer];
+					tmp.splice(index, 1);
+					this.cellar[producer] = tmp;
+					return true; // Wine removed successfully
+				}
+			} else {
+				const index = this.cellar[producer].findIndex((wine) => wine["Wine Name"] === wineName);
+				if (index !== -1) {
+					let tmp = this.cellar[producer];
+					tmp.splice(index, 1);
+					this.cellar[producer] = tmp;
+				}
 			}
+			return false; // Wine not found
 		}
-		return false; // Wine not found
+	}
+
+	/**
+	 * Remove a producer from a wine cellar.
+	 */
+	removeProducer(producer: string): boolean {
+		let tempCellar: Cellar = {};
+		if(!this.cellar[producer]) return false;
+		Object.keys(this.cellar).forEach((key) => {
+			if (key !== producer) {
+				tempCellar[key] = this.cellar[key];
+			}
+		});
+		this.cellar = tempCellar;
+		return true;
 	}
 
 	/**
 	 * Updates a wine given the producer and wine object.
 	 * @param producer - The producer of the wine.
 	 * @param wine - The wine to be updated.
+	 * @param i - The index of the wine to be updated.
 	 * @returns True if the wine was successfully updated, false otherwise.
 	 * @see Wine
 	 * @see Cellar
@@ -78,7 +144,7 @@ export class WineCellar {
 	 * @example
 	 * const myCellar = new WineCellar();
 	 * myCellar.addWine("Chateau Margaux", {
-	 * 	"Wine Name": "Margaux 2015",
+	 * 	"Wine Name": "Margaux 2015",	
 	 * 	"Vineyard Location": "Bordeaux, France",
 	 * 	Variety: "Cabernet Sauvignon",
 	 * 	Vintage: 2015,
@@ -89,7 +155,7 @@ export class WineCellar {
 	 * });
 	 * const wines = myCellar.getWinesByProducer("Chateau Margaux");
 	 * wines[0].Qty = 5;
-	 * myCellar.updateCellar("Chateau Margaux", wines);
+	 * myCellar.updateWine("Chateau Margaux", wines[0]);
 	 * console.log(myCellar.getWinesByProducer("Chateau Margaux"));
 	 * // Output:
 	 * // [
@@ -104,13 +170,21 @@ export class WineCellar {
 	 * // 		Notes: "Excellent vintage"
 	 * // 	}
 	 * // ]
-	 */
-	updateWine(producer: string, wine: Wine): boolean {
+	 */ 
+	updateWine(producer: string, wine: Wine,i: number = -1): boolean {
 		if (this.cellar[producer]) {
-			const index = this.cellar[producer].findIndex((w) => w["Wine Name"] === wine["Wine Name"]);
-			if (index !== -1) {
+			if (i === -1) {
+				const index = this.cellar[producer].findIndex((w) => w["Wine Name"] === wine["Wine Name"]);
+				if (index !== -1) {
+					let tmp = this.cellar[producer];
+					tmp[index] = wine;
+					this.cellar[producer] = tmp;
+					return true; // Wine updated successfully
+				}
+			}
+			else{
 				let tmp = this.cellar[producer];
-				tmp[index] = wine;
+				tmp[i] = wine;
 				this.cellar[producer] = tmp;
 				return true; // Wine updated successfully
 			}
@@ -258,8 +332,10 @@ export class WineCellar {
 		for (const producer in this.cellar) {
 			producers.push({ name: producer, value: producer });
 		}
-		const uniqueProducers = producers.filter((v, i, a) => a.findIndex((t) => t.name === v.name) === i);
-		return uniqueProducers;
+		const uniqueProducers = producers.filter(
+			(v, i, a) => a.findIndex((t) => t.name === v.name) === i
+		);
+		return uniqueProducers || [];
 	}
 
 	/**
@@ -275,8 +351,10 @@ export class WineCellar {
 				}
 			}
 		}
-		const uniqueVarieties = varieties.filter((v, i, a) => a.findIndex((t) => t.name === v.name) === i);
-		return uniqueVarieties;
+		const uniqueVarieties = varieties.filter(
+			(v, i, a) => a.findIndex((t) => t.name === v.name) === i
+		);
+		return uniqueVarieties || [];
 	}
 
 	/**
@@ -292,10 +370,11 @@ export class WineCellar {
 				}
 			}
 		}
-		const uniqueVineyards = vineyards.filter((v, i, a) => a.findIndex((t) => t.name === v.name) === i);
-		return uniqueVineyards;
+		const uniqueVineyards = vineyards.filter(
+			(v, i, a) => a.findIndex((t) => t.name === v.name) === i
+		);
+		return uniqueVineyards || [];
 	}
-
 
 	/**
 	 * Retrieve a filtered cellar based on the provided filters (optional filters include searchterm, producer, variety, vineyard).
@@ -330,21 +409,32 @@ export class WineCellar {
 	 * // 	]
 	 * // }
 	 */
-	getFilteredCellar(filters: { searchterm?: string; producer?: string; variety?: string; vineyard?: string }): Cellar {
+	getFilteredCellar(filters: {
+		searchterm?: string;
+		producer?: string;
+		variety?: string;
+		vineyard?: string;
+	}): Cellar {
 		let filteredCellar: Cellar = {};
 		for (const producer in this.cellar) {
 			for (const wine of this.cellar[producer]) {
 				if (
 					(!filters.searchterm ||
+						filters.searchterm === "" ||
 						wine["Wine Name"]?.toLowerCase().includes(filters.searchterm.toLowerCase()) ||
 						wine["Vineyard Location"]?.toLowerCase().includes(filters.searchterm.toLowerCase()) ||
 						wine["Variety"]?.toLowerCase().includes(filters.searchterm.toLowerCase()) ||
 						wine["Bin"]?.toLowerCase().includes(filters.searchterm.toLowerCase()) ||
-						wine["Notes"]?.toLowerCase().includes(filters.searchterm.toLowerCase())) &&
-					(!filters.producer || producer.toLowerCase().includes(filters.producer.toLowerCase())) &&
+						wine["Notes"]?.toLowerCase().includes(filters.searchterm.toLowerCase()) ||
+						producer.toLowerCase().includes(filters.searchterm.toLowerCase())) &&
+					(!filters.producer ||
+						filters.producer === "" ||
+						producer.toLowerCase().includes(filters.producer.toLowerCase())) &&
 					(!filters.variety ||
+						filters.variety === "" ||
 						wine.Variety?.toLowerCase().includes(filters.variety.toLowerCase())) &&
 					(!filters.vineyard ||
+						filters.vineyard === "" ||
 						wine["Vineyard Location"]?.toLowerCase().includes(filters.vineyard.toLowerCase()))
 				) {
 					if (!filteredCellar[producer]) {
@@ -356,7 +446,6 @@ export class WineCellar {
 		}
 		return filteredCellar;
 	}
-
 
 	/**
 	 * Checks the wine cellar for a wine with the specified name and vintage.
